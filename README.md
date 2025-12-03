@@ -21,7 +21,7 @@ pip install -e .
 From the project root, run:
 
 ```bash
-python main.py run <你的-harbor-參數...>
+python main.py <your-harbor-parameters...>
 ```
 
 This script will:
