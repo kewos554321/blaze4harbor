@@ -7,6 +7,12 @@ import shlex
 import json
 from pathlib import Path
 
+from google.cloud import storage
+
+
+# TODO: Later, read this from .env / environment variables, e.g. os.environ["GCS_BUCKET_NAME"]
+BUCKET_NAME = "tb-results"
+
 
 def main():
     """Run the harbor command with CLI arguments and post-process its results."""
@@ -150,9 +156,56 @@ def upload_result_to_bigquery_stub(result_data: dict, task_dir: Path) -> None:
 
 
 def upload_task_dir_to_gcs_stub(task_dir: Path) -> None:
-    """Placeholder: upload all task directory contents to GCS (not yet implemented)."""
-    # TODO: Implement GCS upload logic.
-    print(f"[stub] Would upload all contents of {task_dir} to GCS.")
+    """
+    Upload all files under the given task directory to a GCS bucket.
+
+    Details:
+    - Bucket name is taken from BUCKET_NAME (can be moved to .env later).
+    - Object name format: "<task_dir.name>/<relative_file_path>", e.g.
+      task_dir = ".../2025-12-03__13-19-28/hello-world__NNnT6rY"
+      result.json -> "hello-world__NNnT6rY/result.json"
+    """
+    bucket_name = BUCKET_NAME
+
+    print(f"\nUploading task directory '{task_dir}' to GCS bucket '{bucket_name}' ...")
+
+    try:
+        client = storage.Client()
+    except Exception as e:
+        print(f"Error: failed to create GCS client: {e}", file=sys.stderr)
+        return
+
+    try:
+        bucket = client.bucket(bucket_name)
+    except Exception as e:
+        print(f"Error: failed to get bucket '{bucket_name}': {e}", file=sys.stderr)
+        return
+
+    if not task_dir.exists() or not task_dir.is_dir():
+        print(f"Warning: task directory does not exist or is not a directory: {task_dir}", file=sys.stderr)
+        return
+
+    uploaded_count = 0
+    for path in task_dir.rglob("*"):
+        if not path.is_file():
+            continue
+
+        # object name: "<task_dir.name>/<relative/path/to/file>"
+        relative_path = path.relative_to(task_dir).as_posix()
+        blob_name = f"{task_dir.name}/{relative_path}"
+
+        try:
+            blob = bucket.blob(blob_name)
+            blob.upload_from_filename(str(path))
+            uploaded_count += 1
+            print(f"Uploaded {path} -> gs://{bucket_name}/{blob_name}")
+        except Exception as e:
+            print(f"Error uploading file {path} to gs://{bucket_name}/{blob_name}: {e}", file=sys.stderr)
+
+    if uploaded_count == 0:
+        print("No files found to upload in task directory.", file=sys.stderr)
+    else:
+        print(f"Finished uploading {uploaded_count} files to gs://{bucket_name}/{task_dir.name}/")
 
 
 def extract_results_dir(output_text):
@@ -166,4 +219,6 @@ def extract_results_dir(output_text):
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+
+    upload_task_dir_to_gcs_stub(Path("jobs/2025-12-03__13-19-28"))
