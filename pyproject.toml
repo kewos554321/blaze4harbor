@@ -1,0 +1,9 @@
+[project]
+name = "blaze4harbor"
+version = "0.1.0"
+description = "A thin wrapper CLI to run harbor and show result directories more easily."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "harbor",
+]
