@@ -19,15 +19,18 @@ def main():
         with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.log') as temp_file:
             temp_file_path = temp_file.name
 
-        cmd_str = " ".join(shlex.quote(arg) for arg in cmd)
-
-        script_cmd = ["script", "-q", temp_file_path, "-c", f'"{cmd_str}"']
-        
-        subprocess.run(
-            script_cmd,
-            text=True,
-            check=True,
-        )
+        if sys.platform.startswith("darwin"):
+            script_cmd = ["script", "-q", temp_file_path, harbor_cmd] + harbor_args
+            subprocess.run(script_cmd, text=True, check=True)
+        elif sys.platform.startswith("linux"):
+            cmd_str = " ".join(shlex.quote(a) for a in [harbor_cmd] + harbor_args)
+            script_cmd = ["script", "-q", temp_file_path, "-c", cmd_str]
+            subprocess.run(script_cmd, text=True, check=True)
+        elif sys.platform.startswith("win"):
+            cmd = [harbor_cmd] + harbor_args
+            subprocess.run(cmd, text=True, check=True)
+        else:
+            raise RuntimeError(f"Unsupported platform for script/harbor wrapper: {sys.platform}")
         
         print("\n=== Harbor finished, starting post-processing ===")
 
