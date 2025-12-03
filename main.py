@@ -19,12 +19,10 @@ def main():
         with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.log') as temp_file:
             temp_file_path = temp_file.name
 
-        cmd_str = ' '.join(shlex.quote(arg) for arg in cmd)
-        shell_cmd = f'script -q "{temp_file_path}" {cmd_str}'
+        script_cmd = ["script", "-q", temp_file_path] + cmd
         
         subprocess.run(
-            shell_cmd,
-            shell=True,
+            script_cmd,
             text=True,
             check=True,
         )
