@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 
+from absl import app
 from google3.pyglib import gfile
 
 
@@ -48,15 +49,15 @@ def upload_task_dir_to_gcs(task_dir: Path) -> None:
         print(f"Finished uploading {uploaded_count} files to gs://{bucket_name}/{task_dir.name}/")
 
 
-def main():
+def main(argv):
     """CLI entry point for uploading task directories to GCS."""
-    if len(sys.argv) < 2:
+    if len(argv) < 2:
         print("Usage: gcs_upload.py <task_dir>", file=sys.stderr)
         sys.exit(1)
 
-    task_dir = Path(sys.argv[1])
+    task_dir = Path(argv[1])
     upload_task_dir_to_gcs(task_dir)
 
 
 if __name__ == "__main__":
-    main()
+    app.run(main)
