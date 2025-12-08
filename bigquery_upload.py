@@ -3,7 +3,6 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from absl import app
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
