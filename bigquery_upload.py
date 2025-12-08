@@ -18,14 +18,6 @@ def upload_result_to_bigquery(result_data: dict, task_dir: Path,
                               table_id: str = TABLE_ID) -> None:
     """
     Upload result.json data to BigQuery.
-
-    Details:
-    - Dataset and table names are taken from constants.
-    - Creates dataset and table if they don't exist.
-    - Flattens nested JSON structure for BigQuery compatibility.
-    - Object name format: "<task_dir.name>/<relative_file_path>", e.g.
-      task_dir = ".../2025-12-03__13-19-28/hello-world__NNnT6rY"
-      result.json -> "hello-world__NNnT6rY/result.json"
     """
     print(f"\nUploading result data from '{task_dir}' to BigQuery dataset '{dataset_id}.{table_id}' ...")
 
@@ -44,6 +36,8 @@ def upload_result_to_bigquery(result_data: dict, task_dir: Path,
             return
 
     # Initialize BigQuery client
+    # Try to get project from dataset_id or use default
+    # Client will use credentials from gcloud auth application-default login
     client = bigquery.Client()
 
     # Ensure dataset exists
@@ -87,33 +81,40 @@ def upload_result_to_bigquery(result_data: dict, task_dir: Path,
 def flatten_result_data(result_data: dict, task_dir: Path) -> dict:
     """
     Flatten nested JSON structure for BigQuery insertion.
-    Converts nested objects to JSON strings for storage.
+    Converts stats object to nested structure and evals to array.
     """
+    stats_data = result_data.get("stats", {})
+    
+    # Convert evals object (with dynamic keys) to array
+    evals_array = []
+    if stats_data.get("evals"):
+        for eval_name, eval_data in stats_data.get("evals", {}).items():
+            eval_entry = {
+                "eval_name": eval_name,
+                "n_trials": eval_data.get("n_trials"),
+                "n_errors": eval_data.get("n_errors"),
+                "metrics": eval_data.get("metrics", []),
+                # Store complex nested structures as JSON strings
+                "reward_stats": json.dumps(eval_data.get("reward_stats", {})) if eval_data.get("reward_stats") else None,
+                "exception_stats": json.dumps(eval_data.get("exception_stats", {})) if eval_data.get("exception_stats") else None,
+            }
+            evals_array.append(eval_entry)
+    
+    # Build stats RECORD structure
+    stats_record = None
+    if stats_data:
+        stats_record = {
+            "n_trials": stats_data.get("n_trials"),
+            "n_errors": stats_data.get("n_errors"),
+            "evals": evals_array if evals_array else [],  # Empty array for REPEATED field
+        }
+    
     row = {
         "id": result_data.get("id"),
-        "task_name": result_data.get("task_name"),
-        "trial_name": result_data.get("trial_name"),
-        "trial_uri": result_data.get("trial_uri"),
-        "source": result_data.get("source"),
-        "task_checksum": result_data.get("task_checksum"),
-        
-        # Store nested objects as JSON strings
-        "task_id": json.dumps(result_data.get("task_id", {})) if result_data.get("task_id") else None,
-        "config": json.dumps(result_data.get("config", {})) if result_data.get("config") else None,
-        "agent_info": json.dumps(result_data.get("agent_info", {})) if result_data.get("agent_info") else None,
-        "agent_result": json.dumps(result_data.get("agent_result", {})) if result_data.get("agent_result") else None,
-        "verifier_result": json.dumps(result_data.get("verifier_result", {})) if result_data.get("verifier_result") else None,
-        "exception_info": json.dumps(result_data.get("exception_info")) if result_data.get("exception_info") else None,
-        "environment_setup": json.dumps(result_data.get("environment_setup", {})) if result_data.get("environment_setup") else None,
-        "agent_setup": json.dumps(result_data.get("agent_setup", {})) if result_data.get("agent_setup") else None,
-        "agent_execution": json.dumps(result_data.get("agent_execution", {})) if result_data.get("agent_execution") else None,
-        "verifier": json.dumps(result_data.get("verifier", {})) if result_data.get("verifier") else None,
-        
-        # Timestamps
         "started_at": result_data.get("started_at"),
         "finished_at": result_data.get("finished_at"),
-        
-        # Additional metadata
+        "n_total_trials": result_data.get("n_total_trials"),
+        "stats": stats_record,
         "task_dir_name": task_dir.name,
     }
     
@@ -121,26 +122,41 @@ def flatten_result_data(result_data: dict, task_dir: Path) -> dict:
 
 
 def get_bigquery_schema() -> list[bigquery.SchemaField]:
-    """Define BigQuery table schema for trial results."""
+    """Define BigQuery table schema for job results."""
     return [
         bigquery.SchemaField("id", "STRING", mode="NULLABLE"),
-        bigquery.SchemaField("task_name", "STRING", mode="NULLABLE"),
-        bigquery.SchemaField("trial_name", "STRING", mode="NULLABLE"),
-        bigquery.SchemaField("trial_uri", "STRING", mode="NULLABLE"),
-        bigquery.SchemaField("source", "STRING", mode="NULLABLE"),
-        bigquery.SchemaField("task_checksum", "STRING", mode="NULLABLE"),
-        bigquery.SchemaField("task_id", "STRING", mode="NULLABLE"),  # JSON string
-        bigquery.SchemaField("config", "STRING", mode="NULLABLE"),  # JSON string
-        bigquery.SchemaField("agent_info", "STRING", mode="NULLABLE"),  # JSON string
-        bigquery.SchemaField("agent_result", "STRING", mode="NULLABLE"),  # JSON string
-        bigquery.SchemaField("verifier_result", "STRING", mode="NULLABLE"),  # JSON string
-        bigquery.SchemaField("exception_info", "STRING", mode="NULLABLE"),  # JSON string
-        bigquery.SchemaField("environment_setup", "STRING", mode="NULLABLE"),  # JSON string
-        bigquery.SchemaField("agent_setup", "STRING", mode="NULLABLE"),  # JSON string
-        bigquery.SchemaField("agent_execution", "STRING", mode="NULLABLE"),  # JSON string
-        bigquery.SchemaField("verifier", "STRING", mode="NULLABLE"),  # JSON string
         bigquery.SchemaField("started_at", "TIMESTAMP", mode="NULLABLE"),
         bigquery.SchemaField("finished_at", "TIMESTAMP", mode="NULLABLE"),
+        bigquery.SchemaField("n_total_trials", "INTEGER", mode="NULLABLE"),
+        bigquery.SchemaField(
+            "stats",
+            "RECORD",
+            mode="NULLABLE",
+            fields=[
+                bigquery.SchemaField("n_trials", "INTEGER", mode="NULLABLE"),
+                bigquery.SchemaField("n_errors", "INTEGER", mode="NULLABLE"),
+                bigquery.SchemaField(
+                    "evals",
+                    "RECORD",
+                    mode="REPEATED",  # Array of records
+                    fields=[
+                        bigquery.SchemaField("eval_name", "STRING", mode="NULLABLE"),
+                        bigquery.SchemaField("n_trials", "INTEGER", mode="NULLABLE"),
+                        bigquery.SchemaField("n_errors", "INTEGER", mode="NULLABLE"),
+                        bigquery.SchemaField(
+                            "metrics",
+                            "RECORD",
+                            mode="REPEATED",  # Array of metrics
+                            fields=[
+                                bigquery.SchemaField("mean", "FLOAT", mode="NULLABLE"),
+                            ],
+                        ),
+                        bigquery.SchemaField("reward_stats", "STRING", mode="NULLABLE"),  # JSON string for complex structure
+                        bigquery.SchemaField("exception_stats", "STRING", mode="NULLABLE"),  # JSON string
+                    ],
+                ),
+            ],
+        ),
         bigquery.SchemaField("task_dir_name", "STRING", mode="NULLABLE"),
     ]
 
