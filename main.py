@@ -7,15 +7,13 @@ import shlex
 import json
 from pathlib import Path
 
-from gcs_upload import upload_task_dir_to_gcs
 
-
-def main():
+def main(argv: list[str]) -> None:
     """Run the harbor command with CLI arguments and post-process its results."""
     temp_file_path = None
     try:
         harbor_cmd = get_harbor_executable()
-        harbor_args = normalize_jobs_dir_args(sys.argv[1:])
+        harbor_args = argv[1:]
         cmd = [harbor_cmd] + harbor_args
         
         with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.log') as temp_file:
@@ -54,9 +52,21 @@ def main():
                 print(f"Warning: result.json not found at {result_json_path}", file=sys.stderr)
 
             if result_data is not None:
-                upload_result_to_bigquery_stub(result_data, task_dir)
+                # Invoke bigquery_upload.py via subprocess
+                bigquery_upload_script = "bigquery_upload.py"
+                subprocess.run(
+                    [sys.executable, str(bigquery_upload_script), str(task_dir)],
+                    text=True,
+                    check=False
+                )
 
-            upload_task_dir_to_gcs(task_dir)
+            # Invoke gcs_upload.py via subprocess
+            gcs_upload_script = "gcs_upload.py"
+            subprocess.run(
+                [sys.executable, str(gcs_upload_script), str(task_dir)],
+                text=True,
+                check=False
+            )
         else:
             print("\nWarning: could not extract results directory from output", file=sys.stderr)
         
@@ -108,48 +118,6 @@ def get_harbor_executable() -> str:
     raise FileNotFoundError("harbor executable not found in venv or system PATH")
 
 
-def normalize_jobs_dir_args(argv: list[str]) -> list[str]:
-    """Ensure -o/--jobs-dir points under the user's home, or add a default jobs dir."""
-    home = os.path.expanduser("~")
-    has_jobs_dir = False
-
-    i = 0
-    while i < len(argv):
-        arg = argv[i]
-        if arg in ("-o", "--jobs-dir"):
-            has_jobs_dir = True
-            if i + 1 < len(argv):
-                original = argv[i + 1]
-                argv[i + 1] = os.path.join(home, original)
-            break
-        i += 1
-
-    if not has_jobs_dir:
-        argv = list(argv)
-        argv.extend(["-o", os.path.join(home, "jobs")])
-
-    return argv
-
-
-def upload_result_to_bigquery_stub(result_data: dict, task_dir: Path) -> None:
-    """Placeholder: upload result.json data to BigQuery (not yet implemented)."""
-    # TODO: Implement BigQuery upload logic.
-    print(f"[stub] Would upload result.json for task at {task_dir} to BigQuery.")
-
-    # Print a short preview of the result data for inspection.
-    try:
-        preview = json.dumps(result_data, indent=2, ensure_ascii=False)
-    except TypeError:
-        preview = str(result_data)
-
-    max_len = 800
-    if len(preview) > max_len:
-        print("\nresult.json preview (truncated):")
-        print(preview[:max_len] + "\n... (truncated)")
-    else:
-        print("\nresult.json preview:")
-        print(preview)
-
 
 def extract_results_dir(output_text):
     """Extract the results directory path from harbor output."""
@@ -162,4 +130,4 @@ def extract_results_dir(output_text):
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv)
