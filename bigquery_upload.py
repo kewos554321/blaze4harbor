@@ -9,8 +9,8 @@ from google.cloud.exceptions import NotFound
 
 
 # TODO: Later, read this from .env / environment variables, e.g. os.environ["BIGQUERY_DATASET"]
-DATASET_ID = "harbor_results"
-TABLE_ID = "trial_results"
+DATASET_ID = "tb_results"
+TABLE_ID = "tb_results_table"
 
 
 def upload_result_to_bigquery(result_data: dict, task_dir: Path, 
@@ -81,40 +81,18 @@ def upload_result_to_bigquery(result_data: dict, task_dir: Path,
 def flatten_result_data(result_data: dict, task_dir: Path) -> dict:
     """
     Flatten nested JSON structure for BigQuery insertion.
-    Converts stats object to nested structure and evals to array.
+    Converts nested objects to JSON strings for storage.
     """
-    stats_data = result_data.get("stats", {})
-    
-    # Convert evals object (with dynamic keys) to array
-    evals_array = []
-    if stats_data.get("evals"):
-        for eval_name, eval_data in stats_data.get("evals", {}).items():
-            eval_entry = {
-                "eval_name": eval_name,
-                "n_trials": eval_data.get("n_trials"),
-                "n_errors": eval_data.get("n_errors"),
-                "metrics": eval_data.get("metrics", []),
-                # Store complex nested structures as JSON strings
-                "reward_stats": json.dumps(eval_data.get("reward_stats", {})) if eval_data.get("reward_stats") else None,
-                "exception_stats": json.dumps(eval_data.get("exception_stats", {})) if eval_data.get("exception_stats") else None,
-            }
-            evals_array.append(eval_entry)
-    
-    # Build stats RECORD structure
-    stats_record = None
-    if stats_data:
-        stats_record = {
-            "n_trials": stats_data.get("n_trials"),
-            "n_errors": stats_data.get("n_errors"),
-            "evals": evals_array if evals_array else [],  # Empty array for REPEATED field
-        }
-    
     row = {
         "id": result_data.get("id"),
         "started_at": result_data.get("started_at"),
         "finished_at": result_data.get("finished_at"),
         "n_total_trials": result_data.get("n_total_trials"),
-        "stats": stats_record,
+        
+        # Store nested stats object as JSON string
+        "stats": json.dumps(result_data.get("stats", {})) if result_data.get("stats") else None,
+        
+        # Additional metadata
         "task_dir_name": task_dir.name,
     }
     
@@ -128,40 +106,12 @@ def get_bigquery_schema() -> list[bigquery.SchemaField]:
         bigquery.SchemaField("started_at", "TIMESTAMP", mode="NULLABLE"),
         bigquery.SchemaField("finished_at", "TIMESTAMP", mode="NULLABLE"),
         bigquery.SchemaField("n_total_trials", "INTEGER", mode="NULLABLE"),
-        bigquery.SchemaField(
-            "stats",
-            "RECORD",
-            mode="NULLABLE",
-            fields=[
-                bigquery.SchemaField("n_trials", "INTEGER", mode="NULLABLE"),
-                bigquery.SchemaField("n_errors", "INTEGER", mode="NULLABLE"),
-                bigquery.SchemaField(
-                    "evals",
-                    "RECORD",
-                    mode="REPEATED",  # Array of records
-                    fields=[
-                        bigquery.SchemaField("eval_name", "STRING", mode="NULLABLE"),
-                        bigquery.SchemaField("n_trials", "INTEGER", mode="NULLABLE"),
-                        bigquery.SchemaField("n_errors", "INTEGER", mode="NULLABLE"),
-                        bigquery.SchemaField(
-                            "metrics",
-                            "RECORD",
-                            mode="REPEATED",  # Array of metrics
-                            fields=[
-                                bigquery.SchemaField("mean", "FLOAT", mode="NULLABLE"),
-                            ],
-                        ),
-                        bigquery.SchemaField("reward_stats", "STRING", mode="NULLABLE"),  # JSON string for complex structure
-                        bigquery.SchemaField("exception_stats", "STRING", mode="NULLABLE"),  # JSON string
-                    ],
-                ),
-            ],
-        ),
+        bigquery.SchemaField("stats", "STRING", mode="NULLABLE"),  # JSON string
         bigquery.SchemaField("task_dir_name", "STRING", mode="NULLABLE"),
     ]
 
 
-def main(argv):
+def main(argv: list[str]) -> None:
     """CLI entry point for uploading result.json to BigQuery."""
     if len(argv) < 2:
         print("Usage: bigquery_upload.py <task_dir> [dataset_id] [table_id]", file=sys.stderr)
@@ -187,5 +137,5 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    app.run(main)
+    main(sys.argv)
 
