@@ -1,3 +1,5 @@
+"""Upload task directory to Google Cloud Storage."""
+
 import logging
 import sys
 from pathlib import Path
