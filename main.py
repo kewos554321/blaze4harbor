@@ -104,18 +104,26 @@ def extract_results_line(temp_file_path: str) -> str:
 
 
 def get_harbor_executable() -> str:
-    """Return the path or name of the harbor executable to use."""
-    venv_bin = Path(__file__).parent / ".venv" / "bin" / "harbor"
+    """Return the path or name of the harbor executable to use.
 
-    if venv_bin.exists():
-        return str(venv_bin)
+    The path must be provided via the HARBOR_PATH environment variable.
+    """
+    harbor_path = os.environ.get("HARBOR_PATH")
 
-    import shutil
-    system_harbor = shutil.which("harbor")
-    if system_harbor:
-        return system_harbor
+    if not harbor_path:
+        raise EnvironmentError(
+            "HARBOR_PATH environment variable is not set. "
+            "Please set it to the path of the harbor executable, e.g.:\n"
+            "  export HARBOR_PATH=/path/to/harbor"
+        )
 
-    raise FileNotFoundError("harbor executable not found in venv or system PATH")
+    if not Path(harbor_path).exists():
+        raise FileNotFoundError(
+            f"Harbor executable not found at: {harbor_path}\n"
+            "Please verify the HARBOR_PATH environment variable is set correctly."
+        )
+
+    return harbor_path
 
 
 
