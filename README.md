@@ -44,6 +44,17 @@ uv sync
 uv pip install harbor==0.1.18
 ```
 
+Verify packages are installed:
+
+```bash
+# Check installed packages
+uv pip list | grep -E "harbor|google-cloud"
+# Expected output:
+# google-cloud-bigquery    3.x.x
+# google-cloud-storage     2.x.x
+# harbor                   0.1.18
+```
+
 After installation, get the required paths:
 
 ```bash
