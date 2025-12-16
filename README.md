@@ -95,6 +95,36 @@ blaze run :blaze4harbor -- run \
   -o /usr/local/google/home/user/Documents/harbor_test_loc/jobs
 ```
 
+## Default Output Directory
+
+Due to environment differences between g3 and cloudTop, harbor's output directory must be on the local cloudTop filesystem.
+
+> **Warning**: Do not use g3 paths as the output directory. Harbor runs on cloudTop and will have permission issues writing to g3 filesystem. Always use a local cloudTop path.
+
+**Blaze4Harbor will automatically set the output directory** if you don't specify `-o` (or `--jobs-dir`):
+
+| Command | Auto `-o` |
+|---------|-----------|
+| `run` | ✅ |
+| `jobs start` | ✅ |
+| `jobs resume` | ❌ (uses existing job path) |
+| `sweeps run` | ❌ (uses config file) |
+
+When `-o` is not specified, the default output directory is:
+```
+$BLAZE4HARBOR_LOCAL_PROJECT_DIR/jobs
+```
+
+Example:
+```bash
+# Without -o: automatically uses default output directory
+blaze run :blaze4harbor -- run -d hello-world@head --agent gemini-cli ...
+# Output: INFO: No output directory specified, using default: /home/user/blaze4harbor_local/jobs
+
+# With -o: uses your specified directory
+blaze run :blaze4harbor -- run -d hello-world@head --agent gemini-cli -o /my/custom/path ...
+```
+
 ## What happens after running
 
 Blaze4Harbor will:

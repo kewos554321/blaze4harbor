@@ -18,6 +18,13 @@ ENV_LOCAL_PROJECT_DIR = "BLAZE4HARBOR_LOCAL_PROJECT_DIR"
 # Required upload scripts
 UPLOAD_SCRIPTS = ["bigquery_upload.py", "gcs_upload.py"]
 
+# Harbor commands that require output directory
+# Format: single command or (command, subcommand) tuple
+COMMANDS_REQUIRING_OUTPUT = ["run", ("jobs", "start")]
+
+# Default output directory name
+DEFAULT_OUTPUT_DIR = "jobs"
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -97,6 +104,52 @@ def get_scripts_dir() -> Path:
     return project_path
 
 
+def get_default_output_dir() -> Path:
+    """Return the default output directory under BLAZE4HARBOR_LOCAL_PROJECT_DIR."""
+    project_dir = os.environ.get(ENV_LOCAL_PROJECT_DIR)
+    if not project_dir:
+        raise EnvironmentError(f"{ENV_LOCAL_PROJECT_DIR} environment variable is not set.")
+
+    output_dir = Path(project_dir) / DEFAULT_OUTPUT_DIR
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
+
+
+def needs_output_arg(args: list[str]) -> bool:
+    """Check if the harbor command requires an output directory."""
+    for cmd in COMMANDS_REQUIRING_OUTPUT:
+        if isinstance(cmd, tuple):
+            # Check for subcommand pattern like ("jobs", "start")
+            if len(args) >= 2 and args[0] == cmd[0] and args[1] == cmd[1]:
+                return True
+        elif cmd in args:
+            return True
+    return False
+
+
+def has_output_arg(args: list[str]) -> bool:
+    """Check if output directory is already specified in arguments."""
+    for i, arg in enumerate(args):
+        if arg in ("-o", "--output"):
+            return True
+        if arg.startswith("-o=") or arg.startswith("--output="):
+            return True
+    return False
+
+
+def ensure_output_arg(args: list[str]) -> list[str]:
+    """Add default output directory if command requires it and not specified."""
+    if not needs_output_arg(args):
+        return args
+
+    if has_output_arg(args):
+        return args
+
+    default_output = get_default_output_dir()
+    logger.info("No output directory specified, using default: %s", default_output)
+    return args + ["-o", str(default_output)]
+
+
 def run_harbor(harbor_cmd: str, harbor_args: list[str], log_path: str) -> None:
     """Run harbor command with platform-specific script wrapper."""
     if sys.platform.startswith("darwin"):
@@ -165,7 +218,7 @@ def main(argv: list[str]) -> int:
         # === Phase 1: Running harbor ===
         logger.info("\n=== Phase 1: Running harbor ===")
         harbor_cmd = get_harbor_executable()
-        harbor_args = argv[1:]
+        harbor_args = ensure_output_arg(argv[1:])
 
         with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".log") as f:
             temp_file_path = f.name
