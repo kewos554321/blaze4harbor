@@ -90,7 +90,7 @@ def main(argv: list[str]) -> int:
                 # Invoke bigquery_upload.py via subprocess
                 bigquery_upload_script = script_dir / "bigquery_upload.py"
                 subprocess.run(
-                    [sys.executable, str(bigquery_upload_script), str(task_dir)],
+                    ["python", str(bigquery_upload_script), str(task_dir)],
                     text=True,
                     check=False
                 )
@@ -98,7 +98,7 @@ def main(argv: list[str]) -> int:
             # Invoke gcs_upload.py via subprocess
             gcs_upload_script = script_dir / "gcs_upload.py"
             subprocess.run(
-                [sys.executable, str(gcs_upload_script), str(task_dir)],
+                ["python", str(gcs_upload_script), str(task_dir)],
                 text=True,
                 check=False
             )
