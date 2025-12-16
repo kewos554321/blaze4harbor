@@ -1,22 +1,27 @@
+import logging
 import sys
 from pathlib import Path
 
 from google.cloud import storage
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 # TODO: Later, read this from .env / environment variables, e.g. os.environ["GCS_BUCKET_NAME"]
 BUCKET_NAME = "tb-results"
 
 
 def upload_task_dir_to_gcs(task_dir: Path) -> None:
-    """
-    Upload all files under the given task directory to a GCS bucket.
-    """
+    """Upload all files under the given task directory to a GCS bucket."""
     bucket_name = BUCKET_NAME
-    print(f"\nUploading task directory '{task_dir}' to GCS bucket '{bucket_name}' ...")
+    logger.info("Uploading task directory '%s' to GCS bucket '%s'", task_dir, bucket_name)
 
     if not task_dir.exists() or not task_dir.is_dir():
-        print(f"Warning: task directory does not exist or is not a directory: {task_dir}", file=sys.stderr)
+        logger.warning("Task directory does not exist or is not a directory: %s", task_dir)
         return
 
     # Initialize the GCS client
@@ -38,20 +43,20 @@ def upload_task_dir_to_gcs(task_dir: Path) -> None:
             blob = bucket.blob(blob_name)
             blob.upload_from_filename(str(path))
             uploaded_count += 1
-            print(f"Uploaded {path} -> {gcs_path}")
+            logger.info("Uploaded %s -> %s", path, gcs_path)
         except Exception as e:
-            print(f"Error uploading file {path} to {gcs_path}: {e}", file=sys.stderr)
+            logger.error("Error uploading file %s to %s: %s", path, gcs_path, e)
 
     if uploaded_count == 0:
-        print("No files found to upload in task directory.", file=sys.stderr)
+        logger.warning("No files found to upload in task directory.")
     else:
-        print(f"Finished uploading {uploaded_count} files to gs://{bucket_name}/{task_dir.name}/")
+        logger.info("Finished uploading %d files to gs://%s/%s/", uploaded_count, bucket_name, task_dir.name)
 
 
 def main(argv: list[str]) -> None:
     """CLI entry point for uploading task directories to GCS."""
     if len(argv) < 2:
-        print("Usage: gcs_upload.py <task_dir>", file=sys.stderr)
+        logger.error("Missing required argument: task_dir\n  Usage: gcs_upload.py <task_dir>")
         sys.exit(1)
 
     task_dir = Path(argv[1])
