@@ -8,14 +8,18 @@ import json
 from pathlib import Path
 
 
-def main(argv: list[str]) -> None:
-    """Run the harbor command with CLI arguments and post-process its results."""
+def main(argv: list[str]) -> int:
+    """Run the harbor command with CLI arguments and post-process its results.
+
+    Returns:
+        Exit code: 0 for success, non-zero for failure.
+    """
     temp_file_path = None
     try:
         harbor_cmd = get_harbor_executable()
         harbor_args = argv[1:]
         cmd = [harbor_cmd] + harbor_args
-        
+
         with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.log') as temp_file:
             temp_file_path = temp_file.name
 
@@ -31,7 +35,7 @@ def main(argv: list[str]) -> None:
             subprocess.run(cmd, text=True, check=True)
         else:
             raise RuntimeError(f"Unsupported platform for script/harbor wrapper: {sys.platform}")
-        
+
         print("\n=== Harbor finished, starting post-processing ===")
 
         results_line = extract_results_line(temp_file_path)
@@ -69,20 +73,21 @@ def main(argv: list[str]) -> None:
             )
         else:
             print("\nWarning: could not extract results directory from output", file=sys.stderr)
-        
+
         return 0
+
     except FileNotFoundError:
         print("Error: 'harbor' command not found. Please ensure it is installed.", file=sys.stderr)
-        sys.exit(1)
+        return 1
     except subprocess.CalledProcessError as e:
         print(f"\nfailed with exit code: {e.returncode}", file=sys.stderr)
-        sys.exit(e.returncode)
+        return e.returncode
     except KeyboardInterrupt:
         print("\n\nExecution interrupted by user", file=sys.stderr)
-        sys.exit(130)
+        return 130
     except Exception as e:
         print(f"Unexpected error: {e}", file=sys.stderr)
-        sys.exit(1)
+        return 1
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
             os.unlink(temp_file_path)
@@ -138,4 +143,4 @@ def extract_results_dir(output_text):
 
 
 if __name__ == "__main__":
-    main(sys.argv)
+    sys.exit(main(sys.argv))
