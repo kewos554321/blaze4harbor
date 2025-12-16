@@ -146,6 +146,39 @@ Blaze4Harbor will:
    - Upload `result.json` data to BigQuery
    - Upload all files in the task directory to GCS
 
+## Run Upload Scripts Independently (on g3)
+
+You can also run the upload scripts separately without running harbor:
+
+```bash
+# Upload to BigQuery only
+blaze run :bigquery_upload -- <task_dir> [dataset_id] [table_id]
+
+# Upload to GCS only
+blaze run :gcs_upload -- <task_dir> [bucket_name]
+```
+
+Example:
+
+```bash
+# BigQuery upload (default: dataset=tb_results, table=tb_results_table)
+blaze run :bigquery_upload -- /usr/local/google/home/user/jobs/2025-12-16__07-41-09
+
+# BigQuery upload (with custom dataset/table)
+blaze run :bigquery_upload -- /usr/local/google/home/user/jobs/2025-12-16__07-41-09 my_dataset my_table
+
+# GCS upload (default: bucket=tb-results)
+blaze run :gcs_upload -- /usr/local/google/home/user/jobs/2025-12-16__07-41-09
+
+# GCS upload (with custom bucket)
+blaze run :gcs_upload -- /usr/local/google/home/user/jobs/2025-12-16__07-41-09 my-bucket
+```
+
+| Script | Default |
+|--------|---------|
+| `bigquery_upload` | dataset: `tb_results`, table: `tb_results_table` |
+| `gcs_upload` | bucket: `tb-results` |
+
 ## Environment Variables
 
 | Variable | Description |

@@ -80,6 +80,8 @@ def upload_task_dir_to_gcs(task_dir: Path, bucket_name: str = BUCKET_NAME) -> bo
 
 def main(argv: list[str]) -> int:
     """CLI entry point. Returns exit code."""
+    print("\n=== GCS Upload ===\n")
+
     if len(argv) < 2:
         logger.error(
             "Missing required argument: task_dir\n"
@@ -91,6 +93,9 @@ def main(argv: list[str]) -> int:
 
     task_dir = Path(argv[1])
     bucket_name = argv[2] if len(argv) > 2 else BUCKET_NAME
+
+    logger.info("Task directory: %s", task_dir)
+    logger.info("Target bucket: gs://%s/", bucket_name)
 
     success = upload_task_dir_to_gcs(task_dir, bucket_name)
     return 0 if success else 1

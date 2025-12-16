@@ -141,6 +141,8 @@ def load_result_json(task_dir: Path) -> dict | None:
 
 def main(argv: list[str]) -> int:
     """CLI entry point. Returns exit code."""
+    print("\n=== BigQuery Upload ===\n")
+
     if len(argv) < 2:
         logger.error(
             "Missing required argument: task_dir\n"
@@ -154,6 +156,9 @@ def main(argv: list[str]) -> int:
     task_dir = Path(argv[1])
     dataset_id = argv[2] if len(argv) > 2 else DATASET_ID
     table_id = argv[3] if len(argv) > 3 else TABLE_ID
+
+    logger.info("Task directory: %s", task_dir)
+    logger.info("Target table: %s.%s", dataset_id, table_id)
 
     result_data = load_result_json(task_dir)
     if result_data is None:
