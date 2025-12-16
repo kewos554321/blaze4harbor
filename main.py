@@ -203,9 +203,15 @@ def post_process_results(task_dir: Path, script_dir: Path) -> None:
     else:
         logger.warning("result.json not found at %s", result_json_path)
 
+    # === Phase 2.2: Upload to BigQuery ===
+    print("\n=== Phase 2.2: Uploading to BigQuery ===\n")
     if result_data is not None:
         run_upload_script(script_dir / "bigquery_upload.py", task_dir)
+    else:
+        logger.info("Skipping BigQuery upload (no result data)")
 
+    # === Phase 2.3: Upload to GCS ===
+    print("\n=== Phase 2.3: Uploading to GCS ===\n")
     run_upload_script(script_dir / "gcs_upload.py", task_dir)
 
 
@@ -216,7 +222,7 @@ def main(argv: list[str]) -> int:
     temp_file_path: Optional[str] = None
     try:
         # === Phase 1: Running harbor ===
-        print("\n=== Phase 1: Running harbor ===")
+        print("\n=== Phase 1: Running harbor ===\n")
         harbor_cmd = get_harbor_executable()
         harbor_args = ensure_output_arg(argv[1:])
 
@@ -224,10 +230,9 @@ def main(argv: list[str]) -> int:
             temp_file_path = f.name
 
         run_harbor(harbor_cmd, harbor_args, temp_file_path)
-        print("=== Phase 1: Completed ===\n")
 
-        # === Phase 2.1: Extract results directory ===
-        print("\n=== Phase 2.1: Extracting results directory ===")
+        # === Phase 2.1: Extracting results directory ===
+        print("\n=== Phase 2.1: Extracting results directory ===\n")
         results_line = extract_results_line(temp_file_path)
         results_dir = extract_results_dir(results_line)
 
@@ -236,12 +241,9 @@ def main(argv: list[str]) -> int:
             return 0
 
         logger.info("Found results directory: %s", results_dir)
-        print("=== Phase 2.1: Completed ===\n")
 
-        # === Phase 2.2: Upload results ===
-        print("\n=== Phase 2.2: Uploading results ===")
+        # Phase 2.2 & 2.3 are handled in post_process_results
         post_process_results(Path(results_dir), get_scripts_dir())
-        print("=== Phase 2.2: Completed ===\n")
         return 0
 
     except FileNotFoundError as e:
