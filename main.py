@@ -1,6 +1,7 @@
 """Blaze4Harbor: A wrapper CLI to run harbor and upload results."""
 
 import json
+import logging
 import os
 import re
 import shlex
@@ -16,6 +17,13 @@ ENV_LOCAL_PROJECT_DIR = "BLAZE4HARBOR_LOCAL_PROJECT_DIR"
 
 # Required upload scripts
 UPLOAD_SCRIPTS = ["bigquery_upload.py", "gcs_upload.py"]
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
 def check_required_env_vars() -> None:
@@ -138,9 +146,9 @@ def post_process_results(task_dir: Path, script_dir: Path) -> None:
     if result_json_path.exists():
         with open(result_json_path, "r", encoding="utf-8") as f:
             result_data = json.load(f)
-        print(f"Loaded result.json from {result_json_path}")
+        logger.info("Loaded result.json from %s", result_json_path)
     else:
-        print(f"Warning: result.json not found at {result_json_path}", file=sys.stderr)
+        logger.warning("result.json not found at %s", result_json_path)
 
     if result_data is not None:
         run_upload_script(script_dir / "bigquery_upload.py", task_dir)
@@ -162,30 +170,30 @@ def main(argv: list[str]) -> int:
 
         run_harbor(harbor_cmd, harbor_args, temp_file_path)
 
-        print("\n=== Harbor finished, starting post-processing ===")
+        logger.info("Harbor finished, starting post-processing")
 
         results_line = extract_results_line(temp_file_path)
         results_dir = extract_results_dir(results_line)
 
         if results_dir:
-            print(f"\nFound results directory: {results_dir}")
+            logger.info("Found results directory: %s", results_dir)
             post_process_results(Path(results_dir), get_scripts_dir())
         else:
-            print("\nWarning: could not extract results directory from output", file=sys.stderr)
+            logger.warning("Could not extract results directory from output")
 
         return 0
 
     except FileNotFoundError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        logger.error("%s", e)
         return 1
     except subprocess.CalledProcessError as e:
-        print(f"\nHarbor failed with exit code: {e.returncode}", file=sys.stderr)
+        logger.error("Harbor failed with exit code: %d", e.returncode)
         return e.returncode
     except KeyboardInterrupt:
-        print("\n\nExecution interrupted by user", file=sys.stderr)
+        logger.warning("Execution interrupted by user")
         return 130
     except Exception as e:
-        print(f"Unexpected error: {e}", file=sys.stderr)
+        logger.error("Unexpected error: %s", e)
         return 1
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
