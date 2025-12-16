@@ -8,12 +8,41 @@ import json
 from pathlib import Path
 
 
+def check_required_env_vars() -> None:
+    """Check that all required environment variables are set before execution.
+
+    Raises:
+        EnvironmentError: If any required environment variable is missing.
+    """
+    required_vars = {
+        "HARBOR_PATH": "Path to the harbor executable",
+        "BLAZE4HARBOR_LOCAL_PROJECT_DIR": "Path to cloudTop local project directory",
+    }
+
+    missing_vars = []
+    for var, description in required_vars.items():
+        if not os.environ.get(var):
+            missing_vars.append(f"  {var}: {description}")
+
+    if missing_vars:
+        raise EnvironmentError(
+            "Missing required environment variables:\n" +
+            "\n".join(missing_vars) +
+            "\n\nPlease set them before running, e.g.:\n"
+            "  export HARBOR_PATH=/path/to/harbor\n"
+            "  export BLAZE4HARBOR_LOCAL_PROJECT_DIR=/path/to/blaze4harbor"
+        )
+
+
 def main(argv: list[str]) -> int:
     """Run the harbor command with CLI arguments and post-process its results.
 
     Returns:
         Exit code: 0 for success, non-zero for failure.
     """
+    # Check required environment variables before starting
+    check_required_env_vars()
+
     temp_file_path = None
     try:
         harbor_cmd = get_harbor_executable()
@@ -55,7 +84,7 @@ def main(argv: list[str]) -> int:
             else:
                 print(f"Warning: result.json not found at {result_json_path}", file=sys.stderr)
 
-            script_dir = Path(__file__).parent
+            script_dir = get_scripts_dir()
 
             if result_data is not None:
                 # Invoke bigquery_upload.py via subprocess
@@ -132,6 +161,39 @@ def get_harbor_executable() -> str:
 
     return harbor_path
 
+
+def get_scripts_dir() -> Path:
+    """Return the path to the directory containing upload scripts.
+
+    The path must be provided via the BLAZE4HARBOR_LOCAL_PROJECT_DIR environment variable.
+    This should point to the cloudTop local project directory containing
+    bigquery_upload.py and gcs_upload.py.
+    """
+    project_dir = os.environ.get("BLAZE4HARBOR_LOCAL_PROJECT_DIR")
+
+    if not project_dir:
+        raise EnvironmentError(
+            "BLAZE4HARBOR_LOCAL_PROJECT_DIR environment variable is not set. "
+            "Please set it to the cloudTop local project directory, e.g.:\n"
+            "  export BLAZE4HARBOR_LOCAL_PROJECT_DIR=/path/to/blaze4harbor"
+        )
+
+    project_path = Path(project_dir)
+    if not project_path.exists():
+        raise FileNotFoundError(
+            f"Project directory not found at: {project_dir}\n"
+            "Please verify the BLAZE4HARBOR_LOCAL_PROJECT_DIR environment variable is set correctly."
+        )
+
+    # Verify required scripts exist
+    required_scripts = ["bigquery_upload.py", "gcs_upload.py"]
+    for script in required_scripts:
+        if not (project_path / script).exists():
+            raise FileNotFoundError(
+                f"Required script '{script}' not found in {project_dir}"
+            )
+
+    return project_path
 
 
 def extract_results_dir(output_text):
