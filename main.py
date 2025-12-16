@@ -129,10 +129,10 @@ def needs_output_arg(args: list[str]) -> bool:
 
 def has_output_arg(args: list[str]) -> bool:
     """Check if output directory is already specified in arguments."""
-    for i, arg in enumerate(args):
-        if arg in ("-o", "--output"):
+    for arg in args:
+        if arg in ("-o", "--output", "--jobs-dir"):
             return True
-        if arg.startswith("-o=") or arg.startswith("--output="):
+        if arg.startswith(("-o=", "--output=", "--jobs-dir=")):
             return True
     return False
 
