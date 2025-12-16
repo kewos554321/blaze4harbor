@@ -55,9 +55,11 @@ def main(argv: list[str]) -> int:
             else:
                 print(f"Warning: result.json not found at {result_json_path}", file=sys.stderr)
 
+            script_dir = Path(__file__).parent
+
             if result_data is not None:
                 # Invoke bigquery_upload.py via subprocess
-                bigquery_upload_script = "bigquery_upload.py"
+                bigquery_upload_script = script_dir / "bigquery_upload.py"
                 subprocess.run(
                     [sys.executable, str(bigquery_upload_script), str(task_dir)],
                     text=True,
@@ -65,7 +67,7 @@ def main(argv: list[str]) -> int:
                 )
 
             # Invoke gcs_upload.py via subprocess
-            gcs_upload_script = "gcs_upload.py"
+            gcs_upload_script = script_dir / "gcs_upload.py"
             subprocess.run(
                 [sys.executable, str(gcs_upload_script), str(task_dir)],
                 text=True,
