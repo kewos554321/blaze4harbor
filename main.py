@@ -216,7 +216,7 @@ def main(argv: list[str]) -> int:
     temp_file_path: Optional[str] = None
     try:
         # === Phase 1: Running harbor ===
-        logger.info("\n=== Phase 1: Running harbor ===")
+        print("\n=== Phase 1: Running harbor ===")
         harbor_cmd = get_harbor_executable()
         harbor_args = ensure_output_arg(argv[1:])
 
@@ -224,10 +224,10 @@ def main(argv: list[str]) -> int:
             temp_file_path = f.name
 
         run_harbor(harbor_cmd, harbor_args, temp_file_path)
-        logger.info("=== Phase 1: Completed ===\n")
+        print("=== Phase 1: Completed ===\n")
 
         # === Phase 2.1: Extract results directory ===
-        logger.info("\n=== Phase 2.1: Extracting results directory ===")
+        print("\n=== Phase 2.1: Extracting results directory ===")
         results_line = extract_results_line(temp_file_path)
         results_dir = extract_results_dir(results_line)
 
@@ -236,12 +236,12 @@ def main(argv: list[str]) -> int:
             return 0
 
         logger.info("Found results directory: %s", results_dir)
-        logger.info("=== Phase 2.1: Completed ===\n")
+        print("=== Phase 2.1: Completed ===\n")
 
         # === Phase 2.2: Upload results ===
-        logger.info("\n=== Phase 2.2: Uploading results ===")
+        print("\n=== Phase 2.2: Uploading results ===")
         post_process_results(Path(results_dir), get_scripts_dir())
-        logger.info("=== Phase 2.2: Completed ===\n")
+        print("=== Phase 2.2: Completed ===\n")
         return 0
 
     except FileNotFoundError as e:
