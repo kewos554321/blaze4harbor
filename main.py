@@ -16,11 +16,11 @@ ENV_HARBOR_PATH = "HARBOR_PATH"
 ENV_LOCAL_PROJECT_DIR = "BLAZE4HARBOR_LOCAL_PROJECT_DIR"
 
 # Required upload scripts
-UPLOAD_SCRIPTS = ["bigquery_upload.py", "gcs_upload.py"]
+UPLOAD_SCRIPTS = ("bigquery_upload.py", "gcs_upload.py")
 
 # Harbor commands that require output directory
 # Format: single command or (command, subcommand) tuple
-COMMANDS_REQUIRING_OUTPUT = ["run", ("jobs", "start")]
+COMMANDS_REQUIRING_OUTPUT = ("run", ("jobs", "start"))
 
 # Default output directory name
 DEFAULT_OUTPUT_DIR = "jobs"
