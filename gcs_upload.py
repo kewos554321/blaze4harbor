@@ -54,7 +54,7 @@ def upload_task_dir_to_gcs(task_dir: Path, bucket_name: str = BUCKET_NAME) -> bo
                 logger.error(
                     "Failed to upload file.\n"
                     "  File: %s\n"
-                    "  Error: %s",
+                    "  Error: %r",
                     blob_name, e
                 )
 
@@ -72,7 +72,7 @@ def upload_task_dir_to_gcs(task_dir: Path, bucket_name: str = BUCKET_NAME) -> bo
         logger.error(
             "Failed to upload to GCS.\n"
             "  Bucket: %s\n"
-            "  Error: %s",
+            "  Error: %r",
             bucket_name, e
         )
         return False
