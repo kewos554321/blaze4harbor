@@ -117,7 +117,10 @@ def load_result_json(task_dir: Path) -> dict | None:
     """Load result.json from task directory. Returns None on error."""
     result_json_path = task_dir / "result.json"
 
-    if not result_json_path.exists():
+    try:
+        with open(result_json_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
         logger.error(
             "result.json not found.\n"
             "  Expected path: %s\n"
@@ -125,10 +128,6 @@ def load_result_json(task_dir: Path) -> dict | None:
             result_json_path
         )
         return None
-
-    try:
-        with open(result_json_path, "r", encoding="utf-8") as f:
-            return json.load(f)
     except json.JSONDecodeError as e:
         logger.error(
             "Failed to parse result.json.\n"
