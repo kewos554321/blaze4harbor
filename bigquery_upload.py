@@ -22,14 +22,14 @@ TABLE_ID = "tb_results_table"
 DATASET_LOCATION = "US"
 
 # BigQuery table schema
-SCHEMA = [
+SCHEMA = (
     bigquery.SchemaField("id", "STRING", mode="NULLABLE"),
     bigquery.SchemaField("started_at", "TIMESTAMP", mode="NULLABLE"),
     bigquery.SchemaField("finished_at", "TIMESTAMP", mode="NULLABLE"),
     bigquery.SchemaField("n_total_trials", "INTEGER", mode="NULLABLE"),
     bigquery.SchemaField("stats", "STRING", mode="NULLABLE"),
     bigquery.SchemaField("task_dir_name", "STRING", mode="NULLABLE"),
-]
+)
 
 
 def ensure_dataset_exists(client: bigquery.Client, dataset_id: str) -> bigquery.DatasetReference:
