@@ -9,7 +9,6 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 # Environment variable names
 ENV_HARBOR_PATH = "HARBOR_PATH"
@@ -175,7 +174,7 @@ def extract_results_line(log_path: str) -> str:
     raise ValueError("Could not extract results directory line from output")
 
 
-def extract_results_dir(output_text: str) -> Optional[str]:
+def extract_results_dir(output_text: str) -> str | None:
     """Extract the results directory path from harbor output line."""
     pattern = r"Results written to\s+(.+?)/result\.json"
     match = re.search(pattern, output_text)
@@ -219,7 +218,7 @@ def main(argv: list[str]) -> int:
     """Run harbor and post-process results. Returns exit code."""
     check_required_env_vars()
 
-    temp_file_path: Optional[str] = None
+    temp_file_path: str | None = None
     try:
         # === Phase 1: Running harbor ===
         print("\n=== Phase 1: Running harbor ===\n")
