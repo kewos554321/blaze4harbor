@@ -155,8 +155,6 @@ def ensure_output_arg(args: list[str]) -> list[str]:
 
 def run_harbor(harbor_cmd: str, harbor_args: list[str], log_path: str) -> None:
     """Run harbor command with platform-specific script wrapper."""
-    logger.info("Harbor command: %s %s", harbor_cmd, " ".join(harbor_args))
-
     if sys.platform.startswith("darwin"):
         script_cmd = ["script", "-q", log_path, harbor_cmd] + harbor_args
     elif sys.platform.startswith("linux"):
