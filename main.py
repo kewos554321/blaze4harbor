@@ -17,10 +17,13 @@ ENV_LOCAL_PROJECT_DIR = "BLAZE4HARBOR_LOCAL_PROJECT_DIR"
 # Required upload scripts
 UPLOAD_SCRIPTS = ("bigquery_upload.py", "gcs_upload.py")
 
-# Harbor commands/args for output directory injection
-# Format: single command or (command, subcommand) tuple
-COMMANDS_REQUIRING_OUTPUT = ("run", ("jobs", "start"))
-COMMANDS_NOT_REQUIRING_OUTPUT = ("--help", "-o", "--output", "--jobs-dir")
+# Harbor command control settings
+# - Output arg injection: auto-add -o flag for commands that need output directory
+# - Post-process: upload results to BigQuery and GCS after harbor execution
+CMD_NEED_AUTO_ADD_OUTPUT_ARG = ("run", ("jobs", "start"))
+CMD_SKIP_AUTO_ADD_OUTPUT_ARG = ("--help", "-o", "--output", "--jobs-dir")
+CMD_NEED_POST_PROCESS = ("run", ("jobs", "start"), ("jobs", "resume"))
+CMD_SKIP_POST_PROCESS = ("--help",)
 
 # Default output directory name
 DEFAULT_OUTPUT_DIR = "jobs"
@@ -115,21 +118,29 @@ def get_default_output_dir() -> Path:
     return output_dir
 
 
-def should_add_output_arg(args: list[str]) -> bool:
-    """Check if output directory should be added to the command."""
-    # Check blacklist - skip if excluded args are present
-    if any(arg.strip().startswith(COMMANDS_NOT_REQUIRING_OUTPUT) for arg in args):
-        return False
-
-    # Check whitelist - only add for specific commands
-    for cmd in COMMANDS_REQUIRING_OUTPUT:
+def _match_command(args: list[str], commands: tuple) -> bool:
+    """Check if args match any command in the given tuple."""
+    for cmd in commands:
         if isinstance(cmd, tuple):
             if len(args) >= 2 and args[0] == cmd[0] and args[1] == cmd[1]:
                 return True
         elif cmd in args:
             return True
-
     return False
+
+
+def should_add_output_arg(args: list[str]) -> bool:
+    """Check if output directory should be added to the command."""
+    if any(arg.strip().startswith(CMD_SKIP_AUTO_ADD_OUTPUT_ARG) for arg in args):
+        return False
+    return _match_command(args, CMD_NEED_AUTO_ADD_OUTPUT_ARG)
+
+
+def should_run_post_process(args: list[str]) -> bool:
+    """Check if post-processing should be executed."""
+    if any(arg.strip().startswith(CMD_SKIP_POST_PROCESS) for arg in args):
+        return False
+    return _match_command(args, CMD_NEED_POST_PROCESS)
 
 
 def ensure_output_arg(args: list[str]) -> list[str]:
@@ -222,6 +233,10 @@ def main(argv: list[str]) -> int:
             temp_file_path = f.name
 
         run_harbor(harbor_cmd, harbor_args, temp_file_path)
+
+        # Skip post-process if not required
+        if not should_run_post_process(harbor_args):
+            return 0
 
         # === Phase 2.1: Extracting results directory ===
         print("\n=== Phase 2.1: Extracting results directory ===\n")
