@@ -17,9 +17,10 @@ ENV_LOCAL_PROJECT_DIR = "BLAZE4HARBOR_LOCAL_PROJECT_DIR"
 # Required upload scripts
 UPLOAD_SCRIPTS = ("bigquery_upload.py", "gcs_upload.py")
 
-# Harbor commands that require output directory
+# Harbor commands/args for output directory injection
 # Format: single command or (command, subcommand) tuple
 COMMANDS_REQUIRING_OUTPUT = ("run", ("jobs", "start"))
+COMMANDS_NOT_REQUIRING_OUTPUT = ("--help",)
 
 # Default output directory name
 DEFAULT_OUTPUT_DIR = "jobs"
@@ -116,6 +117,10 @@ def get_default_output_dir() -> Path:
 
 def needs_output_arg(args: list[str]) -> bool:
     """Check if the harbor command requires an output directory."""
+    # Check blacklist first - skip if help flags are present
+    if any(arg in COMMANDS_NOT_REQUIRING_OUTPUT for arg in args):
+        return False
+
     for cmd in COMMANDS_REQUIRING_OUTPUT:
         if isinstance(cmd, tuple):
             # Check for subcommand pattern like ("jobs", "start")
