@@ -18,12 +18,12 @@ ENV_LOCAL_PROJECT_DIR = "BLAZE4HARBOR_LOCAL_PROJECT_DIR"
 UPLOAD_SCRIPTS = ("bigquery_upload.py", "gcs_upload.py")
 
 # Harbor command control settings
-# - Output arg injection: auto-add -o flag for commands that need output directory
+# - Auto add output arg: auto-add -o flag for commands that need output directory
 # - Post-process: upload results to BigQuery and GCS after harbor execution
+CMD_SKIP_AUTO_ADD_OUTPUT_ARG_AND_POST_PROCESS = ("--help",)
+CMD_SKIP_AUTO_ADD_OUTPUT_ARG = ("-o", "--output", "--jobs-dir")
 CMD_NEED_AUTO_ADD_OUTPUT_ARG = ("run", ("jobs", "start"))
-CMD_SKIP_AUTO_ADD_OUTPUT_ARG = ("--help", "-o", "--output", "--jobs-dir")
 CMD_NEED_POST_PROCESS = ("run", ("jobs", "start"), ("jobs", "resume"))
-CMD_SKIP_POST_PROCESS = ("--help",)
 
 # Default output directory name
 DEFAULT_OUTPUT_DIR = "jobs"
@@ -129,8 +129,15 @@ def _match_command(args: list[str], commands: tuple) -> bool:
     return False
 
 
+def _should_skip_all(args: list[str]) -> bool:
+    """Check if all extra processing should be skipped (e.g., --help)."""
+    return any(arg.strip().startswith(CMD_SKIP_AUTO_ADD_OUTPUT_ARG_AND_POST_PROCESS) for arg in args)
+
+
 def should_add_output_arg(args: list[str]) -> bool:
     """Check if output directory should be added to the command."""
+    if _should_skip_all(args):
+        return False
     if any(arg.strip().startswith(CMD_SKIP_AUTO_ADD_OUTPUT_ARG) for arg in args):
         return False
     return _match_command(args, CMD_NEED_AUTO_ADD_OUTPUT_ARG)
@@ -138,7 +145,7 @@ def should_add_output_arg(args: list[str]) -> bool:
 
 def should_run_post_process(args: list[str]) -> bool:
     """Check if post-processing should be executed."""
-    if any(arg.strip().startswith(CMD_SKIP_POST_PROCESS) for arg in args):
+    if _should_skip_all(args):
         return False
     return _match_command(args, CMD_NEED_POST_PROCESS)
 
