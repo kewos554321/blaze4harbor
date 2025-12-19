@@ -3,6 +3,7 @@
 import json
 import logging
 import sys
+import time
 from pathlib import Path
 
 from google.cloud import bigquery
@@ -58,7 +59,23 @@ def ensure_table_exists(client: bigquery.Client, dataset_ref: bigquery.DatasetRe
         table = bigquery.Table(table_ref, schema=SCHEMA)
         client.create_table(table)
         logger.info("Created table '%s'", table_id)
+        # Wait for table to become available (BigQuery eventual consistency)
+        _wait_for_table(client, table_ref)
     return table_ref
+
+
+def _wait_for_table(client: bigquery.Client, table_ref: bigquery.TableReference, max_retries: int = 10, delay: float = 1.0) -> None:
+    """Wait for a newly created table to become available."""
+    for attempt in range(max_retries):
+        try:
+            client.get_table(table_ref)
+            logger.info("Table is ready")
+            return
+        except NotFound:
+            if attempt < max_retries - 1:
+                logger.info("Waiting for table to become available... (attempt %d/%d)", attempt + 1, max_retries)
+                time.sleep(delay)
+    logger.warning("Table may not be fully available after %d attempts", max_retries)
 
 
 def flatten_result_data(result_data: dict, task_dir: Path) -> dict:
