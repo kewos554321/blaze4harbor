@@ -20,7 +20,7 @@ UPLOAD_SCRIPTS = ("bigquery_upload.py", "gcs_upload.py")
 # Harbor commands/args for output directory injection
 # Format: single command or (command, subcommand) tuple
 COMMANDS_REQUIRING_OUTPUT = ("run", ("jobs", "start"))
-COMMANDS_NOT_REQUIRING_OUTPUT = ("--help",)
+COMMANDS_NOT_REQUIRING_OUTPUT = ("--help", "-o", "--output", "--jobs-dir")
 
 # Default output directory name
 DEFAULT_OUTPUT_DIR = "jobs"
@@ -115,38 +115,26 @@ def get_default_output_dir() -> Path:
     return output_dir
 
 
-def needs_output_arg(args: list[str]) -> bool:
-    """Check if the harbor command requires an output directory."""
-    # Check blacklist first - skip if help flags are present
-    if any(arg in COMMANDS_NOT_REQUIRING_OUTPUT for arg in args):
+def should_add_output_arg(args: list[str]) -> bool:
+    """Check if output directory should be added to the command."""
+    # Check blacklist - skip if excluded args are present
+    if any(arg.strip().startswith(COMMANDS_NOT_REQUIRING_OUTPUT) for arg in args):
         return False
 
+    # Check whitelist - only add for specific commands
     for cmd in COMMANDS_REQUIRING_OUTPUT:
         if isinstance(cmd, tuple):
-            # Check for subcommand pattern like ("jobs", "start")
             if len(args) >= 2 and args[0] == cmd[0] and args[1] == cmd[1]:
                 return True
         elif cmd in args:
             return True
-    return False
 
-
-def has_output_arg(args: list[str]) -> bool:
-    """Check if output directory is already specified in arguments."""
-    for arg in args:
-        if arg in ("-o", "--output", "--jobs-dir"):
-            return True
-        if arg.startswith(("-o=", "--output=", "--jobs-dir=")):
-            return True
     return False
 
 
 def ensure_output_arg(args: list[str]) -> list[str]:
     """Add default output directory if command requires it and not specified."""
-    if not needs_output_arg(args):
-        return args
-
-    if has_output_arg(args):
+    if not should_add_output_arg(args):
         return args
 
     default_output = get_default_output_dir()
